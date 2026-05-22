@@ -1,0 +1,23 @@
+# Build artifacts
+build/
+*.elf
+*.bin
+*.hex
+*.map
+*.lst
+*.o
+*.a
+*.d
+
+# IDE files
+.vscode/
+.idea/
+*.ioc
+
+# OpenOCD / debug
+*.cfg.bak
+openocd.log
+
+# OS
+Thumbs.db
+.DS_Store
