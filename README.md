@@ -1,125 +1,125 @@
 # STM32 USB Descriptor Fuzzer
 
-A hardware USB fuzzer running on the STM32F103C8T6 (Blue Pill) that sends malformed USB descriptors to probe vulnerabilities in Windows USB driver stacks (`usbport.sys`, `usbhub.sys`, `usbccgp.sys`, `kbdhid.sys`, `usbstor.sys`, `hidparse.sys`).
+Ein Hardware-USB-Fuzzer auf Basis des STM32F103C8T6 (Blue Pill), der fehlerhafte USB-Deskriptoren sendet, um Schwachstellen in Windows-USB-Treiber-Stacks zu finden (`usbport.sys`, `usbhub.sys`, `usbccgp.sys`, `kbdhid.sys`, `usbstor.sys`, `hidparse.sys`).
 
-**30 runtime-selectable attack modes** — no reflashing required. Modes cover Device, Configuration, Interface, Endpoint, String, HID, Hub, BOS, LangID, Device Qualifier descriptors, EP0 protocol attacks, composite device confusion, USB MSC exploitation, and autonomous BSOD triggering.
+**30 zur Laufzeit wählbare Angriffsmodi** — kein erneutes Flashen nötig. Die Modi decken Device-, Configuration-, Interface-, Endpoint-, String-, HID-, Hub-, BOS-, LangID- und Device-Qualifier-Deskriptoren ab, außerdem EP0-Protokollangriffe, Composite-Device-Confusion, USB-MSC-Exploitation und autonomes BSOD-Triggering.
 
-> **For authorized security research and penetration testing only.**
+> **Nur für autorisierte Sicherheitsforschung und Penetrationstests.**
 
 ---
 
 ## Hardware
 
-| Component | Details |
+| Komponente | Details |
 |-----------|---------|
 | MCU | STM32F103C8T6 (Blue Pill, 128KB Flash, 20KB RAM) |
 | USB | Full-Speed USB 2.0 (PA11/PA12) |
-| UART debug | USART1, PA9=TX, PA10=RX, 115200 8N1 |
-| Mode select | PB2 (freeze), PB3/PB4 (bank), BKP_DR1 (counter) |
-| LED | PC13 (active low, blink-encodes active mode) |
-| Watchdog | IWDG ~26s timeout |
+| UART-Debug | USART1, PA9=TX, PA10=RX, 115200 8N1 |
+| Modusauswahl | PB2 (Freeze), PB3/PB4 (Bank), BKP_DR1 (Zähler) |
+| LED | PC13 (active low, blinkt den aktiven Modus) |
+| Watchdog | IWDG ~26s Timeout |
 
 ---
 
-## Attack Modes
+## Angriffsmodi
 
-### Group 1 — Device Descriptor
-| Mode | Key | Attack | Target |
+### Gruppe 1 — Device Descriptor
+| Modus | Taste | Angriff | Ziel |
 |------|-----|--------|--------|
-| 1 | `1` | `bDeviceClass=0x09` Hub impersonation + 255-port hub descriptor | `usbhub.sys` pool OOB read |
-| 2 | `2` | `bcdUSB=0x0300` fake USB 3.0 + malformed BOS (85→45 bytes, cap `bLength=255`) | USB 3.0 stack overread |
-| 3 | `3` | `bNumConfigurations=0` | USB enumeration logic error |
-| 4 | `4` | `bMaxPacketSize0=0xFF` + EP `wMaxPacketSize=255` | Packet size constraint violation |
+| 1 | `1` | `bDeviceClass=0x09` Hub-Impersonation + Hub-Deskriptor mit 255 Ports | `usbhub.sys` Pool-OOB-Read |
+| 2 | `2` | `bcdUSB=0x0300` gefälschtes USB 3.0 + fehlerhafter BOS (85→45 Bytes, Cap `bLength=255`) | USB-3.0-Stack-Overread |
+| 3 | `3` | `bNumConfigurations=0` | Logikfehler bei der USB-Enumeration |
+| 4 | `4` | `bMaxPacketSize0=0xFF` + EP `wMaxPacketSize=255` | Verletzung der Paketgrößenbeschränkung |
 
-### Group 2 — Config / Interface / Endpoint
-| Mode | Key | Attack | Target |
+### Gruppe 2 — Config / Interface / Endpoint
+| Modus | Taste | Angriff | Ziel |
 |------|-----|--------|--------|
-| 5 | `5` | `wTotalLength=5` (underread) | Config descriptor underread |
-| 6 | `6` | `wTotalLength=0xFFFF` (65535) | 64KB kernel buffer overread |
-| 7 | `7` | `bNumInterfaces=16` | `usbccgp.sys` interface array overflow |
-| 8 | `8` | `bNumEndpoints=0` lie (EP still open) | Class driver EP confusion |
-| 9 | `9` | `bmAttributes=0x00` + `bInterval=0` + `iface.bLength=0` | Parser infinite loop |
+| 5 | `5` | `wTotalLength=5` (Underread) | Config-Deskriptor-Underread |
+| 6 | `6` | `wTotalLength=0xFFFF` (65535) | 64KB Kernel-Buffer-Overread |
+| 7 | `7` | `bNumInterfaces=16` | `usbccgp.sys` Interface-Array-Overflow |
+| 8 | `8` | `bNumEndpoints=0` Lüge (EP trotzdem offen) | Class-Driver-EP-Confusion |
+| 9 | `9` | `bmAttributes=0x00` + `bInterval=0` + `iface.bLength=0` | Parser-Endlosschleife |
 
-### Group 3 — String Descriptors
-| Mode | Key | Attack | Target |
+### Gruppe 3 — String Descriptors
+| Modus | Taste | Angriff | Ziel |
 |------|-----|--------|--------|
-| 10 | `a` | Manufacturer string `bLength=0xFE`, 252 Unicode chars sent | CVE-2024-21429: `usbhub.sys` kernel buffer overflow |
+| 10 | `a` | Manufacturer-String `bLength=0xFE`, 252 Unicode-Zeichen gesendet | CVE-2024-21429: `usbhub.sys` Kernel-Buffer-Overflow |
 
-### Group 4 — HID Descriptors
-| Mode | Key | Attack | Target |
+### Gruppe 4 — HID Descriptors
+| Modus | Taste | Angriff | Ziel |
 |------|-----|--------|--------|
-| 11 | `b` | `wDescriptorLength=0xFFFF` | Huge HID report buffer alloc |
-| 12 | `c` | `wTotalLength=0xFFFF` + HID `bNumDescriptors=16` | Double overread |
-| 13 | `d` | Multi-vector HID report: nesting underflow + PUSH bomb + Long Item + `REPORT_SIZE=255×REPORT_COUNT=255` | `hidparse.sys` corruption |
+| 11 | `b` | `wDescriptorLength=0xFFFF` | Übergroße HID-Report-Buffer-Allokation |
+| 12 | `c` | `wTotalLength=0xFFFF` + HID `bNumDescriptors=16` | Doppelter Overread |
+| 13 | `d` | Multi-Vektor-HID-Report: Nesting-Underflow + PUSH-Bomb + Long Item + `REPORT_SIZE=255×REPORT_COUNT=255` | `hidparse.sys`-Korruption |
 
-### Group 5 — Special / Timing
-| Mode | Key | Attack | Target |
+### Gruppe 5 — Sonderfälle / Timing
+| Modus | Taste | Angriff | Ziel |
 |------|-----|--------|--------|
-| 14 | `e` | 200ms reconnect loop + malformed HID descriptor | UAF race condition |
-| 15 | `f` | LCG full-descriptor random patch every reconnect | Stochastic fuzzing |
-| 16 | `g` | Auto-sequencer: all modes 1–15 ordered by crash probability | Automated sweep |
+| 14 | `e` | 200ms-Reconnect-Loop + fehlerhafter HID-Deskriptor | UAF-Race-Condition |
+| 15 | `f` | LCG-Vollzufalls-Deskriptor-Patch bei jedem Reconnect | Stochastisches Fuzzing |
+| 16 | `g` | Auto-Sequencer: alle Modi 1–15 nach Absturzwahrscheinlichkeit sortiert | Automatisierter Sweep |
 
-### Group 6 — Keyboard BSOD (Manual Only)
-| Mode | Key | Attack | Target |
+### Gruppe 6 — Keyboard BSOD (nur manuell)
+| Modus | Taste | Angriff | Ziel |
 |------|-----|--------|--------|
-| 17 | `h` | **Autonomous**: enumerate as keyboard → set `CrashOnCtrlScroll=1` registry key via HID → USB reconnect → `RCtrl+ScrollLock×2` | `MANUALLY_INITIATED_CRASH (0xE2)` |
+| 17 | `h` | **Autonom**: als Tastatur enumerieren → `CrashOnCtrlScroll=1` Registry-Key per HID setzen → USB-Reconnect → `RCtrl+ScrollLock×2` | `MANUALLY_INITIATED_CRASH (0xE2)` |
 
-### Group 7 — BIOS/POST Disruption
-| Mode | Key | Attack | Target |
+### Gruppe 7 — BIOS/POST-Disruption
+| Modus | Taste | Angriff | Ziel |
 |------|-----|--------|--------|
-| 18 | `i` | 10ms reconnect hammer | BIOS USB enumeration timeout |
-| 19 | `j` | `bNumConfigs=254` + `wTotalLength=0xFFFF` | BIOS config enum loop |
-| 20 | `k` | LangID `bLength=0xFF` (4 real bytes) | BIOS string parser OOB |
-| 21 | `l` | DevQual `bLength=0xFF` + `bcdUSB=0x0300` | HS negotiation crash |
-| 22 | `m` | Boot disruption sequencer: modes 19→20→21→1→2→6→10 + rapid reconnect bursts | Full BIOS disruption |
+| 18 | `i` | 10ms-Reconnect-Hammer | BIOS-USB-Enumerierungs-Timeout |
+| 19 | `j` | `bNumConfigs=254` + `wTotalLength=0xFFFF` | BIOS Config-Enum-Schleife |
+| 20 | `k` | LangID `bLength=0xFF` (4 echte Bytes) | BIOS-String-Parser-OOB |
+| 21 | `l` | DevQual `bLength=0xFF` + `bcdUSB=0x0300` | HS-Negotiation-Crash |
+| 22 | `m` | Boot-Disruption-Sequencer: Modi 19→20→21→1→2→6→10 + schnelle Reconnect-Bursts | Vollständige BIOS-Disruption |
 
-### Group 8 — EP0 / Protocol Attacks
-| Mode | Key | Attack | Target |
+### Gruppe 8 — EP0 / Protokollangriffe
+| Modus | Taste | Angriff | Ziel |
 |------|-----|--------|--------|
-| 23 | `n` | EP0 STALL at status phase: descriptor data sent, handshake aborted | `usbport.sys` retry loop |
-| 24 | `o` | MS OS String `MSFT100` → Extended Compat ID `dwLength=0xFFFF` | Windows kernel pool OOB |
-| 25 | `p` | Descriptor morph: HID→Hub→random per reconnect, same VID/PID | Driver re-bind confusion |
+| 23 | `n` | EP0 STALL in der Status-Phase: Deskriptordaten gesendet, Handshake abgebrochen | `usbport.sys`-Retry-Schleife |
+| 24 | `o` | MS OS String `MSFT100` → Extended Compat ID `dwLength=0xFFFF` | Windows Kernel-Pool-OOB |
+| 25 | `p` | Deskriptor-Morph: HID→Hub→zufällig bei jedem Reconnect, gleiche VID/PID | Driver-Re-Bind-Confusion |
 
-### Group 9 — Composite / Class Attacks
-| Mode | Key | Attack | Target |
+### Gruppe 9 — Composite / Class-Angriffe
+| Modus | Taste | Angriff | Ziel |
 |------|-----|--------|--------|
-| 26 | `q` | IAD conflict: 3 IADs all claim Interface 0 (HID+CDC+Hub, counts 2/2/255) | `usbccgp.sys` interface-map aliasing |
-| 27 | `r` | USB MSC (BOT/SCSI) + malformed CSW (`dCSWSignature=0xBAADC0DE`, Phase Error) | `usbstor.sys` BOT reset loop |
+| 26 | `q` | IAD-Konflikt: 3 IADs beanspruchen alle Interface 0 (HID+CDC+Hub, Counts 2/2/255) | `usbccgp.sys` Interface-Map-Aliasing |
+| 27 | `r` | USB MSC (BOT/SCSI) + fehlerhafter CSW (`dCSWSignature=0xBAADC0DE`, Phase Error) | `usbstor.sys` BOT-Reset-Schleife |
 
-### Group 10 — Flood / Rapid-Fire
-| Mode | Key | Attack | Target |
+### Gruppe 10 — Flood / Rapid-Fire
+| Modus | Taste | Angriff | Ziel |
 |------|-----|--------|--------|
-| 28 | `t` | HID boot keyboard flood: 1000 reports/s, all keys pressed/released | Input subsystem stall |
-| 29 | `u` | Rapid-fire sequencer: all 24 modes at 50ms each, no recovery time | No USB stack recovery |
-| 30 | `v` | OMNI BOMB: all descriptor attacks simultaneously + EP0 STALL | Maximum simultaneous load |
+| 28 | `t` | HID-Boot-Keyboard-Flood: 1000 Reports/s, alle Tasten gedrückt/losgelassen | Input-Subsystem-Stall |
+| 29 | `u` | Rapid-Fire-Sequencer: alle 24 Modi je 50ms, keine Erholungszeit | Kein USB-Stack-Recovery |
+| 30 | `v` | OMNI BOMB: alle Deskriptor-Angriffe gleichzeitig + EP0 STALL | Maximale Gleichzastlast |
 
 ---
 
-## Mode Selection
+## Modusauswahl
 
 ### UART (PA9/PA10, 115200 8N1)
 ```
-1–9   → Mode 1–9
-a–m   → Mode 10–22
-n–r   → Mode 23–27
-t–v   → Mode 28–30
-s     → Force USB reconnect (no mode change)
-?     → Print current status
+1–9   → Modus 1–9
+a–m   → Modus 10–22
+n–r   → Modus 23–27
+t–v   → Modus 28–30
+s     → Erzwingt USB-Reconnect (kein Moduswechsel)
+?     → Aktuellen Status ausgeben
 ```
 
-### Hardware Pins
-- **PB2 = GND** → Mode FROZEN (no counter advance on reset)
-  - PB3/PB4 select bank: `00`=modes 1–4, `01`=5–8, `10`=9–12, `11`=13–16
-  - BKP_DR1 intra-bank offset (1–4)
-- **PB2 = open** → Reset counter: each reset advances mode 1→2→…→30→1
+### Hardware-Pins
+- **PB2 = GND** → Modus EINGEFROREN (kein Zählerfortschritt beim Reset)
+  - PB3/PB4 wählen Bank: `00`=Modi 1–4, `01`=5–8, `10`=9–12, `11`=13–16
+  - BKP_DR1 Intra-Bank-Offset (1–4)
+- **PB2 = offen** → Reset-Zähler: jeder Reset schaltet einen Modus weiter 1→2→…→30→1
 
-### LED Encoding
+### LED-Kodierung
 ```
-Modes  1–8  : N short blinks
-Modes 9–16  : 1 long + (mode−8) short
-Mode  17    : 4 long blinks (⚠ BSOD warning)
-Modes 18–22 : 2 long + (mode−17) short
-Modes 23–30 : 3 long + (mode−22) short
+Modi  1–8  : N kurze Blinks
+Modi  9–16 : 1 langer + (Modus−8) kurze
+Modus 17   : 4 lange Blinks (⚠ BSOD-Warnung)
+Modi 18–22 : 2 lange + (Modus−17) kurze
+Modi 23–30 : 3 lange + (Modus−22) kurze
 ```
 
 ---
@@ -135,65 +135,65 @@ make            # build → stm32-usb-fuzzer.elf / .bin
 make flash      # flash via OpenOCD + ST-Link
 ```
 
-**Toolchain:** arm-none-eabi-gcc, OpenOCD with ST-Link v2
+**Toolchain:** arm-none-eabi-gcc, OpenOCD mit ST-Link v2
 
-**Flash usage:** ~23KB of 128KB
+**Flash-Belegung:** ~23KB von 128KB
 
 ---
 
-## Architecture
+## Architektur
 
 ```
 Core/
-  Inc/main.h          — Mode constants (FUZZ_MODE_*), pin/timing defines
-  Src/main.c          — Mode dispatch, GPIO/BKP mode selection, LED, IWDG
-  Src/uart_log.c      — USART1 TX/RX, timestamped logging, command parser
+  Inc/main.h          — Moduskonstanten (FUZZ_MODE_*), Pin-/Timing-Defines
+  Src/main.c          — Modus-Dispatch, GPIO/BKP-Modusauswahl, LED, IWDG
+  Src/uart_log.c      — USART1 TX/RX, zeitgestempeltes Logging, Befehls-Parser
 
 USB_DEVICE/App/
-  usbd_fuzzer.c       — USBD_ClassTypeDef: all descriptor patching, EP0_TxSent,
-                        DataOut (MSC), ApplyFuzzPatches(), descriptor arrays
-  usbd_fuzzer.h       — Sizes, endpoint addresses, extern declarations
-  usbd_desc.c         — Device/String/LangID descriptor callbacks, runtime patches
+  usbd_fuzzer.c       — USBD_ClassTypeDef: gesamtes Deskriptor-Patching, EP0_TxSent,
+                        DataOut (MSC), ApplyFuzzPatches(), Deskriptor-Arrays
+  usbd_fuzzer.h       — Größen, Endpoint-Adressen, Extern-Deklarationen
+  usbd_desc.c         — Device/String/LangID-Deskriptor-Callbacks, Laufzeit-Patches
 ```
 
-Key design: all 30 modes in a **single binary**. No compile-time `#ifdef`. Mode is selected at runtime from GPIO/BKP/UART. `GetFSCfgDesc()` is fully overridden so every byte the host receives is under fuzzer control.
+Kerndesign: alle 30 Modi in einem **einzigen Binary**. Kein `#ifdef` zur Compile-Zeit. Der Modus wird zur Laufzeit über GPIO/BKP/UART ausgewählt. `GetFSCfgDesc()` ist vollständig überschrieben, sodass jedes Byte, das der Host empfängt, unter der Kontrolle des Fuzzers liegt.
 
 ---
 
-## Findings / CVEs Targeted
+## Findings / Gezielte CVEs
 
-| CVE | Description | Mode |
+| CVE | Beschreibung | Modus |
 |-----|-------------|------|
-| CVE-2024-21429 | `usbhub.sys` heap overflow via oversized string descriptor | 10 |
-| — | `usbhub.sys` OOB read via Hub descriptor with 255 ports | 1 |
-| — | `hidparse.sys` nesting counter underflow | 13 |
-| — | `usbccgp.sys` interface-map corruption via IAD overlap | 26 |
-| — | `usbstor.sys` BOT protocol confusion loop | 27 |
+| CVE-2024-21429 | `usbhub.sys` Heap-Overflow über überlangen String-Deskriptor | 10 |
+| — | `usbhub.sys` OOB-Read über Hub-Deskriptor mit 255 Ports | 1 |
+| — | `hidparse.sys` Nesting-Counter-Underflow | 13 |
+| — | `usbccgp.sys` Interface-Map-Korruption über IAD-Overlap | 26 |
+| — | `usbstor.sys` BOT-Protokoll-Confusion-Schleife | 27 |
 
 ---
 
-## Safety
+## Sicherheitshinweise
 
-- Only use on systems you own or have explicit written authorization to test
-- Mode 17 (keyboard BSOD) will crash the target system — use in isolated test environments
-- Modes 18–22 (BIOS disruption) affect the target at firmware level during POST
-- Not responsible for any damage caused by misuse
-
----
-
-## License
-
-MIT License — see [LICENSE](LICENSE)
+- Nur auf Systemen verwenden, die dir gehören oder für die eine ausdrückliche schriftliche Genehmigung vorliegt
+- Modus 17 (Keyboard BSOD) bringt das Zielsystem zum Absturz — nur in isolierten Testumgebungen einsetzen
+- Die Modi 18–22 (BIOS-Disruption) greifen das Ziel auf Firmware-Ebene während des POST an
+- Für Schäden durch Missbrauch wird keine Haftung übernommen
 
 ---
 
-*Part of ongoing USB driver security research. Contributions and bug reports welcome.*
+## Lizenz
+
+MIT License — siehe [LICENSE](LICENSE)
+
+---
+
+*Teil laufender Sicherheitsforschung zu USB-Treibern. Beiträge und Bug-Reports sind willkommen.*
 
 ---
 
 ## Support
 
-If this tool saved you time or helped with your research, consider a small donation:
+Falls dieses Tool dir Zeit gespart oder bei deiner Forschung geholfen hat, freue ich mich über eine kleine Spende:
 
 **Bitcoin:** `39vZWmnUwDReQ15BwqQXzyqVQ6U8LardEf`
 **PayPal:** [paypal.me/Freakbank1](https://paypal.me/Freakbank1)
