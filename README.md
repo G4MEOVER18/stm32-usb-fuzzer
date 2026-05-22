@@ -188,3 +188,11 @@ MIT License — see [LICENSE](LICENSE)
 ---
 
 *Part of ongoing USB driver security research. Contributions and bug reports welcome.*
+
+---
+
+## Support
+
+If this tool saved you time or helped with your research, consider a small donation:
+
+**Bitcoin:** `39vZWmnUwDReQ15BwqQXzyqVQ6U8LardEf`
