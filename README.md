@@ -124,20 +124,38 @@ Modi 23–30 : 3 lange + (Modus−22) kurze
 
 ---
 
-## Build & Flash
+## Fertige Firmware
+
+Vorkompilierte Images unter [**Releases**](https://github.com/G4MEOVER18/stm32-usb-fuzzer/releases/latest):
 
 ```bash
-# Prerequisites: arm-none-eabi-gcc, make, openocd
-# STM32CubeF1 HAL library expected at D:/Projekte/Firmware/STM32CubeF1
-# (adjust Makefile paths as needed)
+# .bin an Flash-Basis flashen (ST-Link):
+st-flash write stm32-usb-fuzzer_STM32F103C8_v2.0.0.bin 0x08000000
+# oder .hex via ST-Link Utility / OpenOCD
+```
 
-make            # build → stm32-usb-fuzzer.elf / .bin
+## Build & Flash
+
+### PlatformIO (empfohlen — lädt Toolchain + HAL automatisch)
+
+```bash
+pio run                       # bauen (ARM-GCC + STM32Cube-HAL werden geladen)
+pio run -t upload             # flashen (ST-Link)
+pio device monitor -b 115200  # UART-Debug
+```
+
+Plattform/Board sind in `platformio.ini` gepinnt (`ststm32`, `bluepill_f103c8`). Kein manuelles CUBE-SDK nötig.
+
+### Makefile (Alternative)
+
+```bash
+# Prerequisites: arm-none-eabi-gcc, make, openocd + STM32CubeF1 HAL
+# (CUBE_SDK-Pfad im Makefile anpassen)
+make            # build → .elf / .bin
 make flash      # flash via OpenOCD + ST-Link
 ```
 
-**Toolchain:** arm-none-eabi-gcc, OpenOCD mit ST-Link v2
-
-**Flash-Belegung:** ~23KB von 128KB
+**Flash-Belegung:** ~21 KB von 128 KB
 
 ---
 
