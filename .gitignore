@@ -21,3 +21,6 @@ openocd.log
 # OS
 Thumbs.db
 .DS_Store
+
+# Release-Artefakte
+release-bins/
