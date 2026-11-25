@@ -1,5 +1,7 @@
 # STM32 USB Descriptor Fuzzer
 
+[![CI](https://github.com/G4MEOVER18/stm32-usb-fuzzer/actions/workflows/platformio-build.yml/badge.svg)](https://github.com/G4MEOVER18/stm32-usb-fuzzer/actions/workflows/platformio-build.yml)
+
 Ein Hardware-USB-Fuzzer auf Basis des STM32F103C8T6 (Blue Pill), der fehlerhafte USB-Deskriptoren sendet, um Schwachstellen in Windows-USB-Treiber-Stacks zu finden (`usbport.sys`, `usbhub.sys`, `usbccgp.sys`, `kbdhid.sys`, `usbstor.sys`, `hidparse.sys`).
 
 **30 zur Laufzeit wählbare Angriffsmodi** — kein erneutes Flashen nötig. Die Modi decken Device-, Configuration-, Interface-, Endpoint-, String-, HID-, Hub-, BOS-, LangID- und Device-Qualifier-Deskriptoren ab, außerdem EP0-Protokollangriffe, Composite-Device-Confusion, USB-MSC-Exploitation und autonomes BSOD-Triggering.
